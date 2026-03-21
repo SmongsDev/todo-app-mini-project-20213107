@@ -17,7 +17,7 @@ export default function TodoInput({ onAdd, loading }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="새로운 할 일을 입력하세요..."
-        disabled={loading}
+        disabled={false}
         className="
           flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700
           bg-white dark:bg-slate-800
@@ -30,7 +30,7 @@ export default function TodoInput({ onAdd, loading }) {
       />
       <button
         type="submit"
-        disabled={!value.trim() || loading}
+        disabled={!value.trim()}
         className="
           px-5 py-3 rounded-xl font-semibold text-sm
           bg-violet-600 hover:bg-violet-700 active:bg-violet-800
