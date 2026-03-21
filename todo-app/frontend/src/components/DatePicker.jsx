@@ -165,7 +165,7 @@ export default function DatePicker({ value, onChange }) {
       {/* 달력 팝오버 */}
       {open && (
         <div className="
-          absolute z-50 mt-2 right-0
+          absolute z-[9999] mt-2 right-0
           bg-white dark:bg-slate-800
           border border-slate-200 dark:border-slate-700
           rounded-2xl shadow-xl

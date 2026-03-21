@@ -21,7 +21,10 @@ function getDday(dueDate) {
   return { label: `D+${Math.abs(diff)}`, overdue: true, today: false };
 }
 
-export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
+export default function TodoItem({
+  todo, onToggle, onDelete, onEdit,
+  onSubAdd, onSubToggle, onSubDelete,
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(todo.title);
   const [editPriority, setEditPriority] = useState(todo.priority || '보통');
@@ -29,15 +32,17 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
     todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : ''
   );
   const [deleting, setDeleting] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [subInput, setSubInput] = useState('');
+
+  const subTodos = todo.subTodos || [];
+  const subDone = subTodos.filter((s) => s.completed).length;
+  const subProgress = subTodos.length > 0 ? Math.round((subDone / subTodos.length) * 100) : 0;
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
     if (!editValue.trim()) return;
-    onEdit(todo._id, {
-      title: editValue.trim(),
-      priority: editPriority,
-      dueDate: editDueDate || null,
-    });
+    onEdit(todo._id, { title: editValue.trim(), priority: editPriority, dueDate: editDueDate || null });
     setIsEditing(false);
   };
 
@@ -46,144 +51,270 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
     onDelete(todo._id);
   };
 
+  const handleSubAdd = (e) => {
+    e.preventDefault();
+    if (!subInput.trim()) return;
+    onSubAdd(todo._id, subInput.trim());
+    setSubInput('');
+  };
+
   const dday = getDday(todo.dueDate);
 
   return (
     <div
       className={`
-        group flex items-center gap-3 px-4 py-3.5
-        bg-white dark:bg-slate-800
+        group bg-white dark:bg-slate-800
         border border-slate-100 dark:border-slate-700
         rounded-xl
         transition-all duration-200
         hover:shadow-md hover:border-slate-200 dark:hover:border-slate-600
         animate-slide-in
         ${deleting ? 'opacity-50 scale-95' : ''}
+        ${isEditing ? 'relative z-50' : ''}
       `}
     >
-      {/* 체크박스 */}
-      <button
-        onClick={() => onToggle(todo._id, !todo.completed)}
-        aria-label={todo.completed ? '완료 취소' : '완료로 표시'}
-        className={`
-          flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center
-          transition-all duration-200
-          ${
-            todo.completed
+      {/* 메인 행 */}
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        {/* 체크박스 */}
+        <button
+          onClick={() => onToggle(todo._id, !todo.completed)}
+          aria-label={todo.completed ? '완료 취소' : '완료로 표시'}
+          className={`
+            flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center
+            transition-all duration-200
+            ${todo.completed
               ? 'bg-violet-500 border-violet-500'
-              : 'border-slate-300 dark:border-slate-600 hover:border-violet-400'
-          }
-        `}
-      >
-        {todo.completed && (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
-          </svg>
-        )}
-      </button>
+              : 'border-slate-300 dark:border-slate-600 hover:border-violet-400'}
+          `}
+        >
+          {todo.completed && (
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+            </svg>
+          )}
+        </button>
 
-      {/* 텍스트 / 편집 모드 */}
-      {isEditing ? (
-        <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col gap-2">
-          <div className="flex gap-2">
-            <input
-              autoFocus
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Escape' && setIsEditing(false)}
-              className="
-                flex-1 px-2 py-0.5 rounded-lg border border-violet-400
-                bg-white dark:bg-slate-700
-                text-slate-800 dark:text-slate-100 text-sm
-                focus:outline-none focus:ring-2 focus:ring-violet-500
-              "
-            />
-            <button
-              type="submit"
-              onMouseDown={(e) => e.preventDefault()}
-              className="text-xs px-3 py-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
-            >
-              저장
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-              {PRIORITIES.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => setEditPriority(p)}
-                  className={`
-                    px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
-                    ${editPriority === p
-                      ? `bg-white dark:bg-slate-600 shadow-sm ${priorityBadge[p]}`
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}
-                  `}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <DatePicker value={editDueDate} onChange={setEditDueDate} />
-          </div>
-        </form>
-      ) : (
-        <div className="flex-1 flex flex-col gap-1 min-w-0">
-          <span
-            className={`
-              text-sm leading-relaxed select-none break-all
-              line-through-animated
-              ${todo.completed ? 'done text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}
-            `}
-          >
-            {todo.title}
-          </span>
-          <div className="flex items-center gap-1.5">
-            {/* 우선순위 뱃지 */}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${priorityBadge[todo.priority || '보통']}`}>
-              {todo.priority || '보통'}
-            </span>
-            {/* D-day 뱃지 */}
-            {dday && !todo.completed && (
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                  dday.overdue
-                    ? 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400'
-                    : dday.today
-                    ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
-                    : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-                }`}
+        {/* 텍스트 / 편집 모드 */}
+        {isEditing ? (
+          <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && setIsEditing(false)}
+                className="
+                  flex-1 px-2 py-0.5 rounded-lg border border-violet-400
+                  bg-white dark:bg-slate-700
+                  text-slate-800 dark:text-slate-100 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-violet-500
+                "
+              />
+              <button
+                type="submit"
+                onMouseDown={(e) => e.preventDefault()}
+                className="text-xs px-3 py-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
               >
-                {dday.label}
+                저장
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+                {PRIORITIES.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setEditPriority(p)}
+                    className={`
+                      px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
+                      ${editPriority === p
+                        ? `bg-white dark:bg-slate-600 shadow-sm ${priorityBadge[p]}`
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}
+                    `}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <DatePicker value={editDueDate} onChange={setEditDueDate} />
+            </div>
+          </form>
+        ) : (
+          <div
+            className="flex-1 flex flex-col gap-1 min-w-0 cursor-pointer"
+            onClick={() => subTodos.length > 0 && setExpanded((v) => !v)}
+          >
+            <span
+              className={`
+                text-sm leading-relaxed select-none break-all
+                line-through-animated
+                ${todo.completed ? 'done text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}
+              `}
+            >
+              {todo.title}
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${priorityBadge[todo.priority || '보통']}`}>
+                {todo.priority || '보통'}
               </span>
-            )}
+              {dday && !todo.completed && (
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                    dday.overdue
+                      ? 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+                      : dday.today
+                      ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                      : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                  }`}
+                >
+                  {dday.label}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 액션 버튼 */}
+        {!isEditing && (
+          <div className="flex items-center gap-1">
+            {/* 편집/삭제 버튼 */}
+            <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+              <button
+                onClick={() => { setIsEditing(true); setEditValue(todo.title); }}
+                aria-label="수정"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
+                </svg>
+              </button>
+              <button
+                onClick={handleDelete}
+                aria-label="삭제"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h10M6 4V2h4v2M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 하위 항목 진행률 바 */}
+      {subTodos.length > 0 && !isEditing && (
+        <div className="px-4 pb-2 pt-0">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full transition-all duration-500"
+                style={{ width: `${subProgress}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-violet-500 dark:text-violet-400 w-8 text-right">
+              {subProgress}%
+            </span>
           </div>
         </div>
       )}
 
-      {/* 액션 버튼 */}
-      {!isEditing && (
-        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-          <button
-            onClick={() => { setIsEditing(true); setEditValue(todo.title); }}
-            aria-label="수정"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
-            </svg>
-          </button>
-          <button
-            onClick={handleDelete}
-            aria-label="삭제"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h10M6 4V2h4v2M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" />
-            </svg>
-          </button>
+      {/* 하위 항목 확장 패널 */}
+      {expanded && !isEditing && (
+        <div className="border-t border-slate-100 dark:border-slate-700 px-4 py-3 space-y-1 bg-slate-50/50 dark:bg-slate-800/50">
+          {subTodos.length === 0 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 py-1">하위 항목이 없습니다.</p>
+          )}
+          {subTodos.map((sub) => (
+            <div key={sub._id} className="flex items-center gap-2 py-1 group/sub">
+              <button
+                onClick={() => onSubToggle(todo._id, sub._id, !sub.completed)}
+                className={`
+                  flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center
+                  transition-all duration-200
+                  ${sub.completed
+                    ? 'bg-violet-500 border-violet-500'
+                    : 'border-slate-300 dark:border-slate-600 hover:border-violet-400'}
+                `}
+              >
+                {sub.completed && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-4.5" />
+                  </svg>
+                )}
+              </button>
+              <span
+                className={`
+                  flex-1 text-xs leading-relaxed
+                  ${sub.completed
+                    ? 'line-through text-slate-400 dark:text-slate-500'
+                    : 'text-slate-600 dark:text-slate-300'}
+                `}
+              >
+                {sub.title}
+              </span>
+              <button
+                onClick={() => onSubDelete(todo._id, sub._id)}
+                className="opacity-0 group-hover/sub:opacity-100 p-1 rounded text-slate-300 hover:text-red-400 transition-all duration-150"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2 3h8M5 3V2h2v1M4 3v7a.5.5 0 00.5.5h3a.5.5 0 00.5-.5V3" />
+                </svg>
+              </button>
+            </div>
+          ))}
+
+          {/* 하위 항목 추가 입력 */}
+          <form onSubmit={handleSubAdd} className="flex gap-2 pt-2">
+            <input
+              value={subInput}
+              onChange={(e) => setSubInput(e.target.value)}
+              placeholder="하위 항목 추가..."
+              className="
+                flex-1 text-xs px-3 py-2 rounded-lg
+                border border-slate-200 dark:border-slate-600
+                bg-white dark:bg-slate-700
+                text-slate-700 dark:text-slate-200
+                placeholder:text-slate-400
+                focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-transparent
+                transition-all duration-200
+              "
+            />
+            <button
+              type="submit"
+              disabled={!subInput.trim()}
+              className="
+                text-xs px-3 py-2 rounded-lg
+                bg-violet-600 text-white hover:bg-violet-700
+                disabled:opacity-40 disabled:cursor-not-allowed
+                transition-colors
+              "
+            >
+              추가
+            </button>
+          </form>
         </div>
+      )}
+
+      {/* 하위 항목 추가 유도 버튼 (호버 시, 펼치지 않은 상태) */}
+      {!expanded && !isEditing && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="
+            w-full py-1.5 text-xs text-slate-300 dark:text-slate-600
+            hover:text-violet-400 dark:hover:text-violet-400
+            hover:bg-violet-50 dark:hover:bg-violet-900/10
+            transition-all duration-200
+            opacity-0 group-hover:opacity-100
+            flex items-center justify-center gap-1
+          "
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 2v8M2 6h8" />
+          </svg>
+          하위 항목 추가
+        </button>
       )}
     </div>
   );

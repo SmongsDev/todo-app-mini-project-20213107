@@ -1,26 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getTodos, createTodo, updateTodo, deleteTodo, clearCompleted } from './api';
-import TodoInput from './components/TodoInput';
+import {
+  getTodos, createTodo, updateTodo, deleteTodo, clearCompleted,
+  addSubTodo, updateSubTodo, deleteSubTodo,
+} from './api';
 import TodoItem from './components/TodoItem';
 import FilterBar from './components/FilterBar';
 import EmptyState from './components/EmptyState';
+import TodoModal from './components/TodoModal';
 
 export default function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState('전체');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
 
-  // 다크모드 적용
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
 
-  // 목록 불러오기
   const fetchTodos = useCallback(async () => {
     try {
       setError(null);
@@ -35,7 +37,7 @@ export default function App() {
 
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
 
-  // Todo 추가
+  // ── Todo CRUD ──────────────────────────────────────────
   const handleAdd = async (todoData) => {
     try {
       const { data } = await createTodo(todoData);
@@ -45,23 +47,17 @@ export default function App() {
     }
   };
 
-  // 완료 토글
   const handleToggle = async (id, completed) => {
-    setTodos((prev) =>
-      prev.map((t) => (t._id === id ? { ...t, completed } : t))
-    );
+    setTodos((prev) => prev.map((t) => (t._id === id ? { ...t, completed } : t)));
     try {
       await updateTodo(id, { completed });
     } catch {
-      fetchTodos(); // 실패 시 서버 상태로 롤백
+      fetchTodos();
     }
   };
 
-  // 제목/우선순위/마감일 수정
   const handleEdit = async (id, fields) => {
-    setTodos((prev) =>
-      prev.map((t) => (t._id === id ? { ...t, ...fields } : t))
-    );
+    setTodos((prev) => prev.map((t) => (t._id === id ? { ...t, ...fields } : t)));
     try {
       await updateTodo(id, fields);
     } catch {
@@ -69,7 +65,6 @@ export default function App() {
     }
   };
 
-  // 삭제
   const handleDelete = async (id) => {
     setTodos((prev) => prev.filter((t) => t._id !== id));
     try {
@@ -79,7 +74,6 @@ export default function App() {
     }
   };
 
-  // 완료 항목 전체 삭제
   const handleClearCompleted = async () => {
     const prev = todos;
     setTodos((t) => t.filter((item) => !item.completed));
@@ -90,14 +84,53 @@ export default function App() {
     }
   };
 
-  // 필터된 목록
+  // ── Sub-todo CRUD ───────────────────────────────────────
+  const handleSubAdd = async (todoId, title) => {
+    try {
+      const { data } = await addSubTodo(todoId, { title });
+      setTodos((prev) => prev.map((t) => (t._id === todoId ? data : t)));
+    } catch {
+      setError('하위 항목 추가에 실패했습니다.');
+    }
+  };
+
+  const handleSubToggle = async (todoId, subId, completed) => {
+    setTodos((prev) =>
+      prev.map((t) =>
+        t._id === todoId
+          ? { ...t, subTodos: t.subTodos.map((s) => (s._id === subId ? { ...s, completed } : s)) }
+          : t
+      )
+    );
+    try {
+      await updateSubTodo(todoId, subId, { completed });
+    } catch {
+      fetchTodos();
+    }
+  };
+
+  const handleSubDelete = async (todoId, subId) => {
+    setTodos((prev) =>
+      prev.map((t) =>
+        t._id === todoId
+          ? { ...t, subTodos: t.subTodos.filter((s) => s._id !== subId) }
+          : t
+      )
+    );
+    try {
+      await deleteSubTodo(todoId, subId);
+    } catch {
+      fetchTodos();
+    }
+  };
+
+  // ── 필터 / 통계 ─────────────────────────────────────────
   const filtered = todos.filter((t) => {
     if (filter === '진행 중') return !t.completed;
     if (filter === '완료') return t.completed;
     return true;
   });
 
-  // 필터별 카운트
   const counts = {
     전체: todos.length,
     '진행 중': todos.filter((t) => !t.completed).length,
@@ -110,11 +143,12 @@ export default function App() {
   return (
     <div className="min-h-screen flex items-start justify-center px-4 py-12">
       <div className="w-full max-w-lg">
+
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-              할 일 목록
+              To-Do List
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               {todos.length > 0
@@ -145,26 +179,37 @@ export default function App() {
           </button>
         </div>
 
-        {/* 진행률 바 */}
+        {/* 전체 진행률 막대 */}
         {todos.length > 0 && (
-          <div className="mb-6">
-            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-              <span>진행률</span>
-              <span className="font-semibold text-violet-600 dark:text-violet-400">{progress}%</span>
+          <div className="
+            mb-6 px-5 py-4
+            bg-white dark:bg-slate-800
+            border border-slate-100 dark:border-slate-700
+            rounded-2xl shadow-sm
+          ">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">전체 진행률</p>
+              <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{progress}%</span>
             </div>
-            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
+            <div className="flex gap-4 mt-3">
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                전체 <strong className="text-slate-600 dark:text-slate-300">{todos.length}</strong>
+              </span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                진행 중 <strong className="text-amber-500">{counts['진행 중']}</strong>
+              </span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                완료 <strong className="text-violet-500">{completedCount}</strong>
+              </span>
+            </div>
           </div>
         )}
-
-        {/* 입력 폼 */}
-        <div className="mb-4">
-          <TodoInput onAdd={handleAdd} loading={loading} />
-        </div>
 
         {/* 에러 메시지 */}
         {error && (
@@ -185,7 +230,6 @@ export default function App() {
         {/* Todo 목록 */}
         <div className="space-y-2">
           {loading ? (
-            /* 스켈레톤 로딩 */
             Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
@@ -202,12 +246,15 @@ export default function App() {
                 onToggle={handleToggle}
                 onDelete={handleDelete}
                 onEdit={handleEdit}
+                onSubAdd={handleSubAdd}
+                onSubToggle={handleSubToggle}
+                onSubDelete={handleSubDelete}
               />
             ))
           )}
         </div>
 
-        {/* 하단 액션 */}
+        {/* 완료 항목 전체 삭제 */}
         {completedCount > 0 && (
           <div className="mt-5 flex justify-end animate-fade-in">
             <button
@@ -220,10 +267,37 @@ export default function App() {
         )}
 
         {/* 푸터 */}
-        <p className="text-center text-xs text-slate-300 dark:text-slate-700 mt-12">
+        <p className="text-center text-xs text-slate-300 dark:text-slate-700 mt-12 mb-20">
           Todo App · React + Express + MongoDB
         </p>
       </div>
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowModal(true)}
+        aria-label="새 할 일 추가"
+        className="
+          fixed bottom-6 right-6
+          w-14 h-14 rounded-full
+          bg-violet-600 hover:bg-violet-700 active:bg-violet-800
+          text-white shadow-lg hover:shadow-xl
+          flex items-center justify-center
+          transition-all duration-200
+          hover:scale-105 active:scale-95
+        "
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16M4 12h16" />
+        </svg>
+      </button>
+
+      {/* 모달 */}
+      {showModal && (
+        <TodoModal
+          onAdd={handleAdd}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 }

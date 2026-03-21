@@ -12,3 +12,7 @@ export const createTodo = (data) => api.post('/todos', data);
 export const updateTodo = (id, data) => api.put(`/todos/${id}`, data);
 export const deleteTodo = (id) => api.delete(`/todos/${id}`);
 export const clearCompleted = () => api.delete('/todos');
+
+export const addSubTodo = (todoId, data) => api.post(`/todos/${todoId}/subtodos`, data);
+export const updateSubTodo = (todoId, subId, data) => api.put(`/todos/${todoId}/subtodos/${subId}`, data);
+export const deleteSubTodo = (todoId, subId) => api.delete(`/todos/${todoId}/subtodos/${subId}`);
