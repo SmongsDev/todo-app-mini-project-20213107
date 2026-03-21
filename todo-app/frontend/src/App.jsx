@@ -36,9 +36,9 @@ export default function App() {
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
 
   // Todo 추가
-  const handleAdd = async (title) => {
+  const handleAdd = async (todoData) => {
     try {
-      const { data } = await createTodo(title);
+      const { data } = await createTodo(todoData);
       setTodos((prev) => [data, ...prev]);
     } catch {
       setError('추가에 실패했습니다.');
@@ -57,13 +57,13 @@ export default function App() {
     }
   };
 
-  // 제목 수정
-  const handleEdit = async (id, title) => {
+  // 제목/우선순위/마감일 수정
+  const handleEdit = async (id, fields) => {
     setTodos((prev) =>
-      prev.map((t) => (t._id === id ? { ...t, title } : t))
+      prev.map((t) => (t._id === id ? { ...t, ...fields } : t))
     );
     try {
-      await updateTodo(id, { title });
+      await updateTodo(id, fields);
     } catch {
       fetchTodos();
     }

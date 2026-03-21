@@ -1,14 +1,43 @@
 import { useState } from 'react';
+import DatePicker from './DatePicker';
+
+const PRIORITIES = ['높음', '보통', '낮음'];
+
+const priorityBadge = {
+  높음: 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400',
+  보통: 'bg-amber-100 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400',
+  낮음: 'bg-green-100 text-green-500 dark:bg-green-900/30 dark:text-green-400',
+};
+
+function getDday(dueDate) {
+  if (!dueDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diff = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return { label: 'D-Day', overdue: false, today: true };
+  if (diff > 0) return { label: `D-${diff}`, overdue: false, today: false };
+  return { label: `D+${Math.abs(diff)}`, overdue: true, today: false };
+}
 
 export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(todo.title);
+  const [editPriority, setEditPriority] = useState(todo.priority || '보통');
+  const [editDueDate, setEditDueDate] = useState(
+    todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : ''
+  );
   const [deleting, setDeleting] = useState(false);
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
     if (!editValue.trim()) return;
-    onEdit(todo._id, editValue.trim());
+    onEdit(todo._id, {
+      title: editValue.trim(),
+      priority: editPriority,
+      dueDate: editDueDate || null,
+    });
     setIsEditing(false);
   };
 
@@ -16,6 +45,8 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
     setDeleting(true);
     onDelete(todo._id);
   };
+
+  const dday = getDday(todo.dueDate);
 
   return (
     <div
@@ -53,41 +84,87 @@ export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
 
       {/* 텍스트 / 편집 모드 */}
       {isEditing ? (
-        <form onSubmit={handleEditSubmit} className="flex-1 flex gap-2">
-          <input
-            autoFocus
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={() => setIsEditing(false)}
-            className="
-              flex-1 px-2 py-0.5 rounded-lg border border-violet-400
-              bg-white dark:bg-slate-700
-              text-slate-800 dark:text-slate-100 text-sm
-              focus:outline-none focus:ring-2 focus:ring-violet-500
-            "
-          />
-          <button
-            type="submit"
-            className="text-xs px-3 py-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
-          >
-            저장
-          </button>
+        <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setIsEditing(false)}
+              className="
+                flex-1 px-2 py-0.5 rounded-lg border border-violet-400
+                bg-white dark:bg-slate-700
+                text-slate-800 dark:text-slate-100 text-sm
+                focus:outline-none focus:ring-2 focus:ring-violet-500
+              "
+            />
+            <button
+              type="submit"
+              onMouseDown={(e) => e.preventDefault()}
+              className="text-xs px-3 py-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+            >
+              저장
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+              {PRIORITIES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setEditPriority(p)}
+                  className={`
+                    px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
+                    ${editPriority === p
+                      ? `bg-white dark:bg-slate-600 shadow-sm ${priorityBadge[p]}`
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}
+                  `}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <DatePicker value={editDueDate} onChange={setEditDueDate} />
+          </div>
         </form>
       ) : (
-        <span
-          className={`
-            flex-1 text-sm leading-relaxed select-none
-            line-through-animated
-            ${todo.completed ? 'done text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}
-          `}
-        >
-          {todo.title}
-        </span>
+        <div className="flex-1 flex flex-col gap-1 min-w-0">
+          <span
+            className={`
+              text-sm leading-relaxed select-none break-all
+              line-through-animated
+              ${todo.completed ? 'done text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}
+            `}
+          >
+            {todo.title}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {/* 우선순위 뱃지 */}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${priorityBadge[todo.priority || '보통']}`}>
+              {todo.priority || '보통'}
+            </span>
+            {/* D-day 뱃지 */}
+            {dday && !todo.completed && (
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                  dday.overdue
+                    ? 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+                    : dday.today
+                    ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                    : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                }`}
+              >
+                {dday.label}
+              </span>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* 액션 버튼 (hover 시 표시) */}
+      {/* 액션 버튼 */}
       {!isEditing && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
           <button
             onClick={() => { setIsEditing(true); setEditValue(todo.title); }}
             aria-label="수정"

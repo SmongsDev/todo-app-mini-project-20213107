@@ -19,6 +19,8 @@ const todoSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     completed: { type: Boolean, default: false },
+    priority: { type: String, enum: ['높음', '보통', '낮음'], default: '보통' },
+    dueDate: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -37,11 +39,11 @@ app.get('/api/todos', async (req, res) => {
 // POST /api/todos — 새 Todo 추가
 app.post('/api/todos', async (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, priority, dueDate } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ message: '제목을 입력해주세요' });
     }
-    const todo = new Todo({ title: title.trim() });
+    const todo = new Todo({ title: title.trim(), priority, dueDate: dueDate || null });
     await todo.save();
     res.status(201).json(todo);
   } catch (err) {
@@ -52,10 +54,12 @@ app.post('/api/todos', async (req, res) => {
 // PUT /api/todos/:id — 완료 상태 토글
 app.put('/api/todos/:id', async (req, res) => {
   try {
-    const { completed, title } = req.body;
+    const { completed, title, priority, dueDate } = req.body;
     const update = {};
     if (completed !== undefined) update.completed = completed;
     if (title !== undefined) update.title = title.trim();
+    if (priority !== undefined) update.priority = priority;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'dueDate')) update.dueDate = dueDate || null;
 
     const todo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!todo) return res.status(404).json({ message: 'Todo를 찾을 수 없습니다' });
