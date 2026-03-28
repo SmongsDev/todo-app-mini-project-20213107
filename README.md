@@ -218,7 +218,7 @@ npm run dev      # Vite 개발 서버 실행 (포트 5173)
 ## 11. 배포
 
 - **배포 플랫폼**: Vercel
-- **GitHub 레포지토리**: https://github.com/
+- **GitHub 레포지토리**: https://github.com/SmongsDev/todo-app-mini-project-20213107
 - **배포 URL**: https://todo-app-mini-project-20213107.vercel.app/
 
 > Vercel 환경 변수로 `MONGODB_URI`를 설정해야 정상 동작합니다.
