@@ -131,26 +131,29 @@ export default function DatePicker({ value, onChange }) {
 
   return (
     <div className="relative flex-1" ref={ref}>
-      {/* 트리거 버튼 */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
+      {/* 트리거 영역 */}
+      <div
         className={`
           w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm
-          border transition-all duration-200
+          border transition-all duration-200 cursor-pointer
           ${open
             ? 'border-violet-500 ring-2 ring-violet-500/20'
             : 'border-slate-200 dark:border-slate-700 hover:border-violet-400'}
           bg-white dark:bg-slate-800
-          text-left
         `}
       >
-        <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <span className={selected ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}>
-          {selected ? format(selected, 'M월 d일 (EEE)', { locale: ko }) : '날짜 선택'}
-        </span>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-2 flex-1 text-left"
+        >
+          <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className={selected ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}>
+            {selected ? format(selected, 'M월 d일 (EEE)', { locale: ko }) : '날짜 선택'}
+          </span>
+        </button>
         {selected && (
           <button
             type="button"
@@ -160,7 +163,7 @@ export default function DatePicker({ value, onChange }) {
             ✕
           </button>
         )}
-      </button>
+      </div>
 
       {/* 달력 팝오버 */}
       {open && (
